@@ -30,13 +30,13 @@ export async function POST(req: NextRequest) {
     // Get pending deposit transactions for this user
     let query = supabaseAdmin
       .from('transactions')
-      .select('id, pesapal_tracking_id, reference, arc_amount, user_id')
+      .select('id, payment_tracking_id, reference, arc_amount, user_id')
       .eq('user_id', user.id)
       .eq('type', 'deposit')
       .eq('status', 'pending')
 
     if (checkoutRequestId) {
-      query = query.eq('pesapal_tracking_id', checkoutRequestId)
+      query = query.eq('payment_tracking_id', checkoutRequestId)
     }
 
     const { data: pendingTxs } = await query
@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
     let anyCompleted = false
 
     for (const tx of pendingTxs) {
-      if (!tx.pesapal_tracking_id) continue
+      if (!tx.payment_tracking_id) continue
 
       try {
-        const status = await querySTKStatus(tx.pesapal_tracking_id)
+        const status = await querySTKStatus(tx.payment_tracking_id)
 
         // ResultCode "0" = success
         if (status.ResultCode === '0') {

@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin
       .from('transactions')
       .update({
-        pesapal_tracking_id: stkResponse.CheckoutRequestID,
+        payment_tracking_id: stkResponse.CheckoutRequestID,
         metadata: {
           initiated_at: new Date().toISOString(),
           phone,

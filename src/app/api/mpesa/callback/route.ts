@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { data: transaction, error: txFindError } = await supabaseAdmin
       .from('transactions')
       .select('*')
-      .eq('pesapal_tracking_id', CheckoutRequestID)
+      .eq('payment_tracking_id', CheckoutRequestID)
       .eq('status', 'pending')
       .single()
 
