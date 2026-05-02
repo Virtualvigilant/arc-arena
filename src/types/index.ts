@@ -73,7 +73,7 @@ export interface Transaction {
 }
 
 export const BAND_RANGES: Record<StakeBand, { min: number; max: number }> = {
-  bronze: { min: 50, max: 99 },
+  bronze: { min: 10, max: 99 },
   silver: { min: 100, max: 199 },
   gold:   { min: 200, max: 499 },
   elite:  { min: 500, max: 9999 }
