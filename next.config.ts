@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  allowedDevOrigins: [
+    'intentional-unignitable-melodi.ngrok-free.dev',
+  ],
 };
 
 export default nextConfig;
