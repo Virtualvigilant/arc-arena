@@ -66,7 +66,7 @@ export interface Transaction {
   arc_amount: number
   kes_amount: number | null
   reference: string | null
-  pesapal_tracking_id: string | null
+  payment_tracking_id: string | null
   status: TxStatus
   metadata: Record<string, any> | null
   created_at: string
