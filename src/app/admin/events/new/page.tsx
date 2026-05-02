@@ -231,7 +231,7 @@ export default function NewEventPage() {
           <div className="grid grid-cols-4 gap-2">
             {BANDS.map(band => {
               const ranges: Record<string, string> = {
-                bronze: '50–99 Arc',
+                bronze: '10–99 Arc',
                 silver: '100–199 Arc',
                 gold: '200–499 Arc',
                 elite: '500+ Arc'
