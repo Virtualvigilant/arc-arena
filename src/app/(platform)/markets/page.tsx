@@ -12,46 +12,43 @@ export default async function MarketsPage() {
     .select(`
       *,
       multipliers:event_multipliers(*),
-      stakes(count)
+      stakes(count),
+      outcomes:event_outcomes!event_outcomes_event_id_fkey(*),
+      sub_markets:event_sub_markets(*, outcomes:event_outcomes!event_outcomes_event_id_fkey(*))
     `)
     .in('status', ['upcoming', 'live', 'judging'])
     .order('created_at', { ascending: false })
 
-  const { data: stats } = await supabase
-    .from('events')
-    .select('total_pool, rake_collected, status')
-    .in('status', ['live', 'completed'])
-
-  const totalPool = stats?.reduce((a, b) => a + (b.total_pool || 0), 0) ?? 0
-  const totalRake = stats?.reduce((a, b) => a + (b.rake_collected || 0), 0) ?? 0
-  const liveCount = stats?.filter(e => e.status === 'live').length ?? 0
+  // Flatten sub_market outcomes into the event.outcomes array
+  const processedEvents = (events ?? []).map(event => {
+    const subMarketOutcomes = (event.sub_markets ?? []).flatMap((sm: any) => sm.outcomes ?? [])
+    return {
+      ...event,
+      outcomes: [...(event.outcomes ?? []), ...subMarketOutcomes]
+    }
+  })
 
   return (
     <div>
-      {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
-        {[
-          { label: 'Total pool', value: `◈ ${totalPool.toLocaleString()}`, accent: true },
-          { label: 'Rake collected', value: `◈ ${totalRake.toLocaleString()}`, accent: false },
-          { label: 'Live events', value: liveCount.toString(), accent: false },
-          { label: 'Arc rate', value: '1 KES = 1 Arc', accent: false },
-        ].map(stat => (
-          <div
-            key={stat.label}
-            className="bg-white border border-gray-100 rounded-xl p-4"
-          >
-            <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-              {stat.label}
-            </div>
-            <div className={`font-mono text-lg font-medium ${stat.accent ? 'text-arc-gold' : 'text-gray-900'}`}>
-              {stat.value}
-            </div>
-          </div>
-        ))}
+      {/* Page title */}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-bold text-pm-text tracking-tight">All markets</h1>
+        <div className="flex items-center gap-2">
+          <button className="p-2 rounded-lg border border-pm-border text-pm-text-secondary hover:text-pm-text hover:bg-pm-surface transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          <button className="p-2 rounded-lg border border-pm-border text-pm-text-secondary hover:text-pm-text hover:bg-pm-surface transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      {/* Events */}
-      <EventGrid events={(events as ArcEvent[]) ?? []} />
+      {/* Events grid */}
+      <EventGrid events={(processedEvents as ArcEvent[]) ?? []} />
     </div>
   )
 }

@@ -2,45 +2,50 @@
 
 import { useState } from 'react'
 import EventCard from './EventCard'
-import { ArcEvent } from '@/types'
-
-const DOMAINS = ['All', 'Tech / Coding', 'Hustle', 'Design', 'Gaming', 'Academic']
+import { ArcEvent, EVENT_CATEGORIES } from '@/types'
 
 export default function EventGrid({ events }: { events: ArcEvent[] }) {
-  const [domain, setDomain] = useState('All')
+  const [activeCategory, setActiveCategory] = useState('All')
 
-  const filtered = domain === 'All'
+  const filtered = activeCategory === 'All'
     ? events
-    : events.filter(e => e.domain === domain)
+    : activeCategory === 'Trending'
+      ? [...events].sort((a, b) => b.total_pool - a.total_pool)
+      : activeCategory === 'New'
+        ? [...events].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        : events.filter(e => e.domain === activeCategory)
 
   return (
     <div>
-      {/* Domain filter */}
-      <div className="flex gap-1 mb-5 overflow-x-auto pb-1">
-        {DOMAINS.map(d => (
+      {/* Category filter pills — horizontal scroll */}
+      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-1">
+        {EVENT_CATEGORIES.map(cat => (
           <button
-            key={d}
-            onClick={() => setDomain(d)}
-            className={`px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
-              domain === d
-                ? 'bg-stovest-blue text-white shadow-[0_0_15px_rgba(29,78,216,0.3)]'
-                : 'bg-transparent border border-stovest-border text-gray-400 hover:border-gray-600 hover:text-white'
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all border ${
+              activeCategory === cat
+                ? 'bg-pm-blue text-white border-pm-blue shadow-lg shadow-pm-blue/20'
+                : 'bg-transparent border-pm-border text-pm-text-secondary hover:border-pm-text-muted hover:text-pm-text'
             }`}
           >
-            {d}
+            {cat}
           </button>
         ))}
       </div>
 
+      {/* Grid */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 text-gray-500">
-          <div className="text-4xl mb-3 font-mono text-stovest-blue opacity-50">◈</div>
-          <div className="text-sm">No events in this category yet</div>
+        <div className="text-center py-20">
+          <div className="text-4xl mb-3 opacity-30">◈</div>
+          <div className="text-sm text-pm-text-muted">No markets in this category yet</div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {filtered.map(event => (
-            <EventCard key={event.id} event={event} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filtered.map((event, i) => (
+            <div key={event.id} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
+              <EventCard event={event} />
+            </div>
           ))}
         </div>
       )}

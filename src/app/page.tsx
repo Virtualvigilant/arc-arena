@@ -4,10 +4,6 @@ import Header from '@/components/ui/Header'
 import EventGrid from '@/components/events/EventGrid'
 import { ArcEvent } from '@/types'
 
-import Sidebar from '@/components/ui/Sidebar'
-
-// ... existing imports stay the same but I'll replace everything down from import Header
-
 export const revalidate = 0
 
 export default async function RootPage() {
@@ -27,92 +23,52 @@ export default async function RootPage() {
     .select(`
       *,
       multipliers:event_multipliers(*),
-      stakes(count)
+      stakes(count),
+      outcomes:event_outcomes!event_outcomes_event_id_fkey(*),
+      sub_markets:event_sub_markets(*, outcomes:event_outcomes!event_outcomes_event_id_fkey(*))
     `)
     .in('status', ['upcoming', 'live', 'judging'])
     .order('created_at', { ascending: false })
 
-  const { data: stats } = await supabase
-    .from('events')
-    .select('total_pool, rake_collected, status')
-    .in('status', ['live', 'completed'])
-
-  const totalPool = stats?.reduce((a, b) => a + (b.total_pool || 0), 0) ?? 0
-  const totalRake = stats?.reduce((a, b) => a + (b.rake_collected || 0), 0) ?? 0
-  const liveCount = stats?.filter(e => e.status === 'live').length ?? 0
+  // Flatten sub_market outcomes into the event.outcomes array for easy access
+  const processedEvents = (events ?? []).map(event => {
+    const subMarketOutcomes = (event.sub_markets ?? []).flatMap((sm: any) => sm.outcomes ?? [])
+    return {
+      ...event,
+      outcomes: [...(event.outcomes ?? []), ...subMarketOutcomes]
+    }
+  })
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stovest-bg">
-      <Sidebar profile={profile} />
-      
-      <div className="flex-1 flex flex-col h-screen overflow-y-auto relative text-white">
-        <Header profile={profile} />
-        
-        <main className="max-w-6xl mx-auto w-full px-8 py-2">
-          
-          <div className="grid grid-cols-4 gap-4 mb-6">
-  
-            {/* Total Pool Main Card */}
-            <div className="col-span-1 bg-stovest-card border border-stovest-border rounded-2xl p-6 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-stovest-blue-dim to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="flex items-center justify-between mb-8 pr-2 relative z-10">
-                <div className="text-gray-400 text-sm">Total Pool</div>
-                <div className="w-8 h-8 rounded-full border border-gray-700 flex items-center justify-center text-xs">◈</div>
-              </div>
-              <div className="relative z-10">
-                <div className="font-syne text-3xl font-bold tracking-tight text-white mb-2">
-                  <span className="text-stovest-blue">◈</span> {totalPool.toLocaleString()}
-                </div>
-                <div className="text-xs">
-                  <span className="text-stovest-blue font-medium">+12.5% </span>
-                  <span className="text-gray-500">this week</span>
-                </div>
-              </div>
-            </div>
+    <div className="min-h-screen bg-pm-bg">
+      <Header profile={profile} />
 
-            {/* Smaller Sub-cards */}
-            <div className="col-span-3 bg-stovest-card border border-stovest-border rounded-2xl p-6 flex items-center justify-between">
-              
-              <div className="flex-1 px-4 border-r border-stovest-border/50">
-                <div className="text-gray-400 text-xs mb-3">Rake Collected</div>
-                <div className="text-xl font-bold font-syne tracking-tight mb-1">
-                  ◈ {totalRake.toLocaleString()}
-                </div>
-                <div className="text-stovest-blue text-[10px]">+ ◈488.0</div>
-              </div>
-
-              <div className="flex-1 px-8 border-r border-stovest-border/50">
-                <div className="text-gray-400 text-xs mb-3">Live Events</div>
-                <div className="text-xl font-bold font-syne tracking-tight mb-1">
-                  {liveCount} Active
-                </div>
-                <div className="text-green-500 text-[10px]">Open for staking</div>
-              </div>
-
-              <div className="flex-1 px-8">
-                <div className="text-gray-400 text-xs mb-3">Arc Rate</div>
-                <div className="text-xl font-bold font-syne tracking-tight mb-1">
-                  KES 1.00
-                </div>
-                <div className="text-gray-600 text-[10px] uppercase">Stable peg</div>
-              </div>
-
-            </div>
-
+      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-6 py-6">
+        {/* Page title */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold text-pm-text tracking-tight">All markets</h1>
+          <div className="flex items-center gap-2">
+            <button className="p-2 rounded-lg border border-pm-border text-pm-text-secondary hover:text-pm-text hover:bg-pm-surface transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+            <button className="p-2 rounded-lg border border-pm-border text-pm-text-secondary hover:text-pm-text hover:bg-pm-surface transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+            </button>
+            <button className="p-2 rounded-lg border border-pm-border text-pm-text-secondary hover:text-pm-text hover:bg-pm-surface transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+              </svg>
+            </button>
           </div>
+        </div>
 
-          <div className="bg-stovest-card rounded-2xl border border-stovest-border p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-sm font-medium text-gray-300">Arena Markets Overview</h2>
-              <button className="text-xs bg-[#1E2232] text-gray-300 px-4 py-1.5 rounded-full hover:bg-gray-700 transition">
-                View all
-              </button>
-            </div>
-            <EventGrid events={(events as ArcEvent[]) ?? []} />
-          </div>
-
-        </main>
-      </div>
+        {/* Events grid */}
+        <EventGrid events={(processedEvents as ArcEvent[]) ?? []} />
+      </main>
     </div>
   )
 }

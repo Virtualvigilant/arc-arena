@@ -16,7 +16,13 @@ export default async function EventPage({
 
   const { data: event } = await supabase
     .from('events')
-    .select(`*, multipliers:event_multipliers(*), stakes(*)`)
+    .select(`
+      *,
+      multipliers:event_multipliers(*),
+      stakes(*),
+      outcomes:event_outcomes!event_outcomes_event_id_fkey(*),
+      sub_markets:event_sub_markets(*, outcomes:event_outcomes!event_outcomes_event_id_fkey(*))
+    `)
     .eq('id', id)
     .single()
 
@@ -30,38 +36,43 @@ export default async function EventPage({
     .eq('id', user!.id)
     .single()
 
-  const userStake = event.stakes?.find((s: any) => s.user_id === user!.id)
+  // Flatten sub_market outcomes
+  const subMarketOutcomes = (event.sub_markets ?? []).flatMap((sm: any) => sm.outcomes ?? [])
+  const allOutcomes = [...(event.outcomes ?? []), ...subMarketOutcomes]
+  const typedEvent = { ...event, outcomes: allOutcomes } as ArcEvent
 
-  const sortedMults = [...(event.multipliers ?? [])]
+  const userStake = typedEvent.stakes?.find((s: any) => s.user_id === user!.id)
+
+  const sortedMults = [...(typedEvent.multipliers ?? [])]
     .sort((a: any, b: any) => a.position_rank - b.position_rank)
 
   return (
     <div className="max-w-3xl mx-auto">
 
       {/* Back */}
-      <a href="/markets" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-gray-600 text-sm mb-6 transition-colors">
-        ← All events
+      <a href="/markets" className="inline-flex items-center gap-1.5 text-pm-text-secondary hover:text-pm-text text-sm mb-6 transition-colors">
+        ← All markets
       </a>
 
       {/* Header */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-4">
+      <div className="bg-pm-card border border-pm-border rounded-xl p-6 mb-4">
         <div className="flex items-start justify-between mb-4">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider bg-gray-50 border border-gray-100 px-2 py-1 rounded-md">
+          <span className="text-[10px] text-pm-text-muted uppercase tracking-wider bg-pm-surface border border-pm-border px-2 py-1 rounded">
             {event.domain}
           </span>
           <span className={`text-xs font-medium px-2.5 py-1 rounded-lg border ${
-            event.status === 'live' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'
+            event.status === 'live' ? 'bg-pm-green-soft text-pm-green border-pm-green/30' : 'bg-pm-surface text-pm-text-muted border-pm-border'
           }`}>
-            {event.status === 'live' && <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1 mb-0.5" />}
+            {event.status === 'live' && <span className="inline-block w-1.5 h-1.5 bg-pm-green rounded-full mr-1 mb-0.5 live-pulse" />}
             {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
           </span>
         </div>
 
-        <h1 className="font-bold text-2xl text-gray-900 tracking-tight mb-3">
+        <h1 className="font-bold text-2xl text-pm-text tracking-tight mb-3">
           {event.title}
         </h1>
 
-        <p className="text-gray-500 text-sm leading-relaxed mb-6">
+        <p className="text-pm-text-secondary text-sm leading-relaxed mb-6">
           {event.description}
         </p>
 
@@ -71,11 +82,11 @@ export default async function EventPage({
             { label: 'Total pool', value: `${ARC} ${event.total_pool.toLocaleString()}`, accent: true },
             { label: 'Prize pool', value: `${ARC} ${event.prize_pool.toLocaleString()}`, accent: false },
             { label: 'Rake', value: `${event.rake_percent}%`, accent: false },
-            { label: 'Competitors', value: `${event.stakes?.length ?? 0} / ${event.max_competitors}`, accent: false },
+            { label: 'Participants', value: `${event.stakes?.length ?? 0} / ${event.max_competitors}`, accent: false },
           ].map(s => (
-            <div key={s.label} className="bg-gray-50 rounded-xl p-3">
-              <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{s.label}</div>
-              <div className={`font-mono text-sm font-medium ${s.accent ? 'text-arc-gold' : 'text-gray-900'}`}>
+            <div key={s.label} className="bg-pm-surface rounded-xl p-3">
+              <div className="text-[10px] text-pm-text-muted uppercase tracking-wider mb-1">{s.label}</div>
+              <div className={`font-mono text-sm font-medium ${s.accent ? 'text-pm-blue' : 'text-pm-text'}`}>
                 {s.value}
               </div>
             </div>
@@ -84,48 +95,50 @@ export default async function EventPage({
       </div>
 
       {/* Multipliers */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-4">
-        <h2 className="text-xs text-gray-400 uppercase tracking-wider mb-4">
-          Payout tiers
-        </h2>
-        <div className="space-y-2">
-          {sortedMults.map((m: any) => (
-            <div
-              key={m.id}
-              className={`flex items-center justify-between p-3 rounded-xl border ${
-                m.tier_type === 'winner'
-                  ? 'bg-amber-50 border-amber-100'
-                  : m.tier_type === 'gray'
-                    ? 'bg-gray-50 border-gray-100'
-                    : 'bg-red-50 border-red-50'
-              }`}
-            >
-              <span className={`text-sm font-medium ${
-                m.tier_type === 'winner' ? 'text-amber-800' : 'text-gray-500'
-              }`}>
-                {m.position_label}
-              </span>
-              <span className={`font-mono text-sm font-medium ${
-                m.tier_type === 'winner'
-                  ? 'text-amber-700'
-                  : m.tier_type === 'gray'
-                    ? 'text-gray-500'
-                    : 'text-red-400'
-              }`}>
-                {m.multiplier > 0 ? `${m.multiplier}× stake` : 'Full loss'}
-              </span>
-            </div>
-          ))}
+      {sortedMults.length > 0 && (
+        <div className="bg-pm-card border border-pm-border rounded-xl p-6 mb-4">
+          <h2 className="text-xs text-pm-text-secondary uppercase tracking-wider mb-4 font-medium">
+            Payout tiers
+          </h2>
+          <div className="space-y-2">
+            {sortedMults.map((m: any) => (
+              <div
+                key={m.id}
+                className={`flex items-center justify-between p-3 rounded-xl border ${
+                  m.tier_type === 'winner'
+                    ? 'bg-amber-500/5 border-amber-500/20'
+                    : m.tier_type === 'gray'
+                      ? 'bg-pm-surface border-pm-border'
+                      : 'bg-pm-red-soft border-pm-red/20'
+                }`}
+              >
+                <span className={`text-sm font-medium ${
+                  m.tier_type === 'winner' ? 'text-amber-400' : 'text-pm-text-secondary'
+                }`}>
+                  {m.position_label}
+                </span>
+                <span className={`font-mono text-sm font-medium ${
+                  m.tier_type === 'winner'
+                    ? 'text-amber-400'
+                    : m.tier_type === 'gray'
+                      ? 'text-pm-text-muted'
+                      : 'text-pm-red'
+                }`}>
+                  {m.multiplier > 0 ? `${m.multiplier}× stake` : 'Full loss'}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Judging */}
       {event.judging_criteria && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-4">
-          <h2 className="text-xs text-gray-400 uppercase tracking-wider mb-3">
-            Judging criteria
+        <div className="bg-pm-card border border-pm-border rounded-xl p-6 mb-4">
+          <h2 className="text-xs text-pm-text-secondary uppercase tracking-wider mb-3 font-medium">
+            Resolution criteria
           </h2>
-          <p className="text-sm text-gray-600 leading-relaxed">
+          <p className="text-sm text-pm-text-secondary leading-relaxed">
             {event.judging_criteria}
           </p>
         </div>
@@ -133,17 +146,17 @@ export default async function EventPage({
 
       {/* Stake panel */}
       {userStake ? (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
-          <div className="text-green-700 font-bold text-lg mb-1">
+        <div className="bg-pm-green-soft border border-pm-green/30 rounded-xl p-6 text-center">
+          <div className="text-pm-green font-bold text-lg mb-1">
             {ARC} {userStake.amount.toLocaleString()} Arc staked
           </div>
-          <div className="text-green-600 text-sm">
+          <div className="text-pm-green/70 text-sm">
             You are competing — good luck. Results will be announced after judging.
           </div>
         </div>
       ) : (
         <StakePanel
-          event={event as ArcEvent}
+          event={typedEvent as ArcEvent}
           arcBalance={profile?.arc_balance ?? 0}
           multipliers={sortedMults}
         />

@@ -15,6 +15,25 @@ export interface Profile {
   created_at: string
 }
 
+export interface EventSubMarket {
+  id: string
+  event_id: string
+  label: string
+  sort_order: number
+  created_at: string
+  outcomes?: EventOutcome[]
+}
+
+export interface EventOutcome {
+  id: string
+  event_id: string
+  sub_market_id: string | null
+  label: string
+  sort_order: number
+  color: string | null
+  created_at: string
+}
+
 export interface ArcEvent {
   id: string
   title: string
@@ -36,6 +55,9 @@ export interface ArcEvent {
   created_at: string
   multipliers?: EventMultiplier[]
   stakes?: Stake[]
+  outcomes?: EventOutcome[]
+  sub_markets?: EventSubMarket[]
+  winning_outcome_id: string | null
 }
 
 export interface EventMultiplier {
@@ -56,6 +78,7 @@ export interface Stake {
   status: StakeStatus
   finishing_position: number | null
   payout: number
+  outcome_id: string | null
   created_at: string
 }
 
@@ -78,3 +101,21 @@ export const BAND_RANGES: Record<StakeBand, { min: number; max: number }> = {
   gold:   { min: 200, max: 499 },
   elite:  { min: 500, max: 9999 }
 }
+
+// Polymarket-style categories for event filtering
+export const EVENT_CATEGORIES = [
+  'All',
+  'Trending',
+  'New',
+  'Sports',
+  'Politics',
+  'Crypto',
+  'Tech',
+  'Gaming',
+  'Finance',
+  'Culture',
+  'Entertainment',
+  'Academic',
+] as const
+
+export type EventCategory = typeof EVENT_CATEGORIES[number]

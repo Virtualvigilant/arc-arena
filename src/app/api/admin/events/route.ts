@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { multipliers, ...eventData } = body
+    const { multipliers, outcomes, sub_markets, ...eventData } = body
 
     // Create event
     const { data: event, error: eventError } = await supabaseAdmin
@@ -52,24 +52,87 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Insert multipliers
-    const multipliersWithEventId = multipliers.map((m: any, i: number) => ({
-      ...m,
-      event_id: event.id,
-      position_rank: i + 1,
-    }))
+    // Insert multipliers (for competition mode)
+    if (multipliers && multipliers.length > 0) {
+      const multipliersWithEventId = multipliers.map((m: any, i: number) => ({
+        ...m,
+        event_id: event.id,
+        position_rank: i + 1,
+      }))
 
-    const { error: multError } = await supabaseAdmin
-      .from('event_multipliers')
-      .insert(multipliersWithEventId)
+      const { error: multError } = await supabaseAdmin
+        .from('event_multipliers')
+        .insert(multipliersWithEventId)
 
-    if (multError) {
-      // Rollback event
-      await supabaseAdmin.from('events').delete().eq('id', event.id)
-      return NextResponse.json(
-        { error: 'Failed to insert multipliers' },
-        { status: 500 }
-      )
+      if (multError) {
+        await supabaseAdmin.from('events').delete().eq('id', event.id)
+        return NextResponse.json(
+          { error: 'Failed to insert multipliers' },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Insert direct outcomes (for prediction mode without sub-markets)
+    if (outcomes && outcomes.length > 0) {
+      const outcomesWithEventId = outcomes.map((o: any, i: number) => ({
+        event_id: event.id,
+        label: o.label,
+        sort_order: o.sort_order ?? i,
+        color: o.color ?? null,
+        sub_market_id: null,
+      }))
+
+      const { error: outcomeError } = await supabaseAdmin
+        .from('event_outcomes')
+        .insert(outcomesWithEventId)
+
+      if (outcomeError) {
+        await supabaseAdmin.from('events').delete().eq('id', event.id)
+        return NextResponse.json(
+          { error: 'Failed to insert outcomes: ' + outcomeError.message },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Insert sub-markets with their outcomes
+    if (sub_markets && sub_markets.length > 0) {
+      for (const sm of sub_markets) {
+        const { data: subMarket, error: smError } = await supabaseAdmin
+          .from('event_sub_markets')
+          .insert({
+            event_id: event.id,
+            label: sm.label,
+            sort_order: sm.sort_order ?? 0,
+          })
+          .select()
+          .single()
+
+        if (smError || !subMarket) {
+          console.error('Sub-market insert error:', smError)
+          continue
+        }
+
+        // Insert outcomes for this sub-market
+        if (sm.outcomes && sm.outcomes.length > 0) {
+          const smOutcomes = sm.outcomes.map((o: any, i: number) => ({
+            event_id: event.id,
+            sub_market_id: subMarket.id,
+            label: o.label,
+            sort_order: o.sort_order ?? i,
+            color: o.color ?? null,
+          }))
+
+          const { error: smOutcomeError } = await supabaseAdmin
+            .from('event_outcomes')
+            .insert(smOutcomes)
+
+          if (smOutcomeError) {
+            console.error('Sub-market outcomes insert error:', smOutcomeError)
+          }
+        }
+      }
     }
 
     return NextResponse.json({ eventId: event.id, success: true })

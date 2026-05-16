@@ -18,7 +18,7 @@ export default async function AdminEventPage({
 
   const { data: event } = await supabase
     .from('events')
-    .select('*, multipliers:event_multipliers(*), stakes(*, profiles(username, phone))')
+    .select('*, multipliers:event_multipliers(*), stakes(*, profiles(username, phone)), outcomes:event_outcomes!event_outcomes_event_id_fkey(*)')
     .eq('id', id)
     .single()
 
@@ -29,6 +29,10 @@ export default async function AdminEventPage({
 
   const sortedStakes = [...(event.stakes ?? [])]
     .sort((a: any, b: any) => b.amount - a.amount)
+
+  const outcomes = (event.outcomes ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order)
+  const hasOutcomes = outcomes.length > 0
+  const winningOutcome = outcomes.find((o: any) => o.id === event.winning_outcome_id)
 
   return (
     <div className="max-w-4xl">
@@ -102,12 +106,26 @@ export default async function AdminEventPage({
       </div>
 
       {/* Judging panel */}
+      {/* Winning outcome banner */}
+      {winningOutcome && (
+        <div className="bg-green-950 border border-green-800 rounded-xl px-5 py-4 mb-4 flex items-center gap-3">
+          <svg className="w-6 h-6 text-green-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <div>
+            <div className="text-green-400 font-semibold text-sm">Resolved — &ldquo;{winningOutcome.label}&rdquo; wins</div>
+            <div className="text-green-600 text-xs">Payouts have been processed</div>
+          </div>
+        </div>
+      )}
+
       {(event.status === 'judging' || event.status === 'live') && (
         <JudgingPanel
           eventId={event.id}
           stakes={sortedStakes}
           multipliers={sortedMults}
           eventStatus={event.status}
+          outcomes={outcomes}
         />
       )}
 
@@ -121,7 +139,7 @@ export default async function AdminEventPage({
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800">
-              {['Competitor', 'Band', 'Stake', 'Position', 'Payout', 'Status'].map(h => (
+              {[...(hasOutcomes ? ['Competitor', 'Outcome', 'Stake', 'Payout', 'Status'] : ['Competitor', 'Band', 'Stake', 'Position', 'Payout', 'Status'])].map(h => (
                 <th
                   key={h}
                   className="text-left text-[10px] text-gray-500 uppercase tracking-wider px-5 py-3"
@@ -145,15 +163,31 @@ export default async function AdminEventPage({
                     {stake.profiles?.phone ?? '—'}
                   </div>
                 </td>
+                {hasOutcomes ? (
+                <td className="px-5 py-3">
+                  <span className={`text-xs font-medium px-2 py-1 rounded border ${
+                    stake.outcome_id === event.winning_outcome_id
+                      ? 'text-green-400 bg-green-950 border-green-800'
+                      : stake.status === 'lost'
+                        ? 'text-red-400 bg-red-950 border-red-800'
+                        : 'text-gray-400 bg-gray-800 border-gray-700'
+                  }`}>
+                    {outcomes.find((o: any) => o.id === stake.outcome_id)?.label ?? '—'}
+                  </span>
+                </td>
+                ) : (
                 <td className="px-5 py-3">
                   <span className="text-xs text-gray-400 capitalize">{stake.band}</span>
                 </td>
+                )}
                 <td className="px-5 py-3 font-mono text-sm text-amber-400">
                   {ARC} {stake.amount.toLocaleString()}
                 </td>
+                {!hasOutcomes && (
                 <td className="px-5 py-3 font-mono text-sm text-white">
                   {stake.finishing_position ? `#${stake.finishing_position}` : '—'}
                 </td>
+                )}
                 <td className="px-5 py-3 font-mono text-sm text-green-400">
                   {stake.payout > 0 ? `${ARC} ${stake.payout.toLocaleString()}` : '—'}
                 </td>

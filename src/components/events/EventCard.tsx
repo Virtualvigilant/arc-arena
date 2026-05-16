@@ -1,17 +1,172 @@
+'use client'
+
 import Link from 'next/link'
-import { ArcEvent } from '@/types'
+import { ArcEvent, EventOutcome, EventSubMarket } from '@/types'
 
-const ARC = '◈'
-
-const STATUS_STYLES = {
-  live: 'bg-green-500/10 text-green-400 border-green-500/20',
-  upcoming: 'bg-stovest-blue-dim text-stovest-blue-light border-stovest-blue/20',
-  judging: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  completed: 'bg-[#1E2232] text-gray-500 border-gray-700',
-  cancelled: 'bg-red-500/10 text-red-500 border-red-500/20',
+function getOutcomeButtonClass(label: string, index: number): string {
+  const lower = label.toLowerCase()
+  if (lower === 'yes' || lower === 'up' || lower === 'win' || lower === 'over') {
+    return 'outcome-btn outcome-btn-yes'
+  }
+  if (lower === 'no' || lower === 'down' || lower === 'lose' || lower === 'under') {
+    return 'outcome-btn outcome-btn-no'
+  }
+  // For neutral outcomes like "Draw"
+  return 'outcome-btn outcome-btn-neutral'
 }
 
-export default function EventCard({ event }: { event: ArcEvent }) {
+function computeProbability(event: ArcEvent, outcomeId?: string): number {
+  if (!event.stakes || event.stakes.length === 0) return 50
+  if (!outcomeId) return 50
+  
+  const total = event.stakes.reduce((sum, s) => sum + s.amount, 0)
+  if (total === 0) return 50
+  
+  const outcomeTotal = event.stakes
+    .filter(s => s.outcome_id === outcomeId)
+    .reduce((sum, s) => sum + s.amount, 0)
+  
+  return Math.round((outcomeTotal / total) * 100)
+}
+
+function formatVolume(amount: number): string {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}K`
+  return amount.toLocaleString()
+}
+
+// Polymarket-style compact card with sub-market rows
+function SubMarketCard({ event }: { event: ArcEvent }) {
+  const subMarkets = event.sub_markets ?? []
+  const topSubMarkets = subMarkets
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .slice(0, 3)
+
+  return (
+    <Link href={`/events/${event.id}`} className="block">
+      <div className="pm-card rounded-xl p-4 h-full flex flex-col cursor-pointer group">
+        {/* Title */}
+        <h3 className="text-sm font-semibold text-pm-text leading-snug mb-3 group-hover:text-white transition-colors line-clamp-2">
+          {event.title}
+        </h3>
+
+        {/* Sub-market rows */}
+        <div className="flex-1 space-y-2 mb-3">
+          {topSubMarkets.map((sub, idx) => {
+            const subOutcomes = (event.outcomes ?? []).filter(o => o.sub_market_id === sub.id)
+            const probability = computeProbability(event, subOutcomes[0]?.id)
+            
+            return (
+              <div key={sub.id} className="flex items-center justify-between gap-2" style={{ animationDelay: `${idx * 50}ms` }}>
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-xs text-pm-text-secondary truncate">{sub.label}</span>
+                  <span className="text-xs font-semibold text-pm-text font-mono">{probability}%</span>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  {subOutcomes.slice(0, 2).map((outcome) => (
+                    <button
+                      key={outcome.id}
+                      className={`${getOutcomeButtonClass(outcome.label, 0)} text-[11px] !px-2.5 !py-1`}
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      {outcome.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-2 border-t border-pm-border">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-pm-text-muted font-mono">
+              ◈{formatVolume(event.total_pool)} Vol.
+            </span>
+          </div>
+          {event.status === 'live' && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-pm-green rounded-full live-pulse" />
+              <span className="text-[10px] text-pm-green font-medium uppercase tracking-wider">Live</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// Polymarket-style card with direct outcome buttons
+function DirectOutcomeCard({ event }: { event: ArcEvent }) {
+  const outcomes = (event.outcomes ?? [])
+    .filter(o => !o.sub_market_id)
+    .sort((a, b) => a.sort_order - b.sort_order)
+
+  // Compute main probability (for the first "positive" outcome)
+  const mainProb = outcomes.length > 0 ? computeProbability(event, outcomes[0]?.id) : null
+
+  return (
+    <Link href={`/events/${event.id}`} className="block">
+      <div className="pm-card rounded-xl p-4 h-full flex flex-col cursor-pointer group">
+        {/* Header with optional probability */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="text-sm font-semibold text-pm-text leading-snug group-hover:text-white transition-colors line-clamp-2 flex-1">
+            {event.title}
+          </h3>
+          {mainProb !== null && (
+            <div className="text-right shrink-0">
+              <div className="text-xl font-bold text-pm-text font-mono leading-none">{mainProb}%</div>
+              <div className="text-[10px] text-pm-text-muted mt-0.5">chance</div>
+            </div>
+          )}
+        </div>
+
+        {/* Description */}
+        <p className="text-xs text-pm-text-secondary leading-relaxed mb-4 line-clamp-2 flex-1">
+          {event.description}
+        </p>
+
+        {/* Outcome buttons */}
+        {outcomes.length > 0 && (
+          <div className={`grid gap-2 mb-3 ${
+            outcomes.length === 2 ? 'grid-cols-2' :
+            outcomes.length === 3 ? 'grid-cols-3' :
+            'grid-cols-2'
+          }`}>
+            {outcomes.map((outcome, i) => (
+              <button
+                key={outcome.id}
+                className={`${getOutcomeButtonClass(outcome.label, i)} text-center`}
+                onClick={(e) => e.preventDefault()}
+              >
+                {outcome.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-2 border-t border-pm-border">
+          <span className="text-[11px] text-pm-text-muted font-mono">
+            ◈{formatVolume(event.total_pool)} Vol.
+          </span>
+          <div className="flex items-center gap-2">
+            {event.status === 'live' && (
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-pm-green rounded-full live-pulse" />
+                <span className="text-[10px] text-pm-green font-medium uppercase tracking-wider">Live</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// Fallback card for events without outcomes (legacy competition events)
+function CompetitionCard({ event }: { event: ArcEvent }) {
   const fillPercent = event.max_competitors > 0
     ? Math.round(((event as any).stakes?.[0]?.count ?? 0) / event.max_competitors * 100)
     : 0
@@ -21,89 +176,47 @@ export default function EventCard({ event }: { event: ArcEvent }) {
     .slice(0, 3)
 
   return (
-    <Link href={`/events/${event.id}`}>
-      <div className="bg-[#0A0D14] border border-stovest-border rounded-2xl p-5 hover:border-stovest-blue/50 hover:bg-[#0D101A] transition-all cursor-pointer group h-full flex flex-col relative overflow-hidden">
-
+    <Link href={`/events/${event.id}`} className="block">
+      <div className="pm-card rounded-xl p-4 h-full flex flex-col cursor-pointer group">
         {/* Top row */}
-        <div className="flex items-start justify-between mb-3 relative z-10">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wider bg-[#1E2232] border border-gray-700 px-2 py-1 rounded-md">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] text-pm-text-muted uppercase tracking-wider bg-pm-surface border border-pm-border px-2 py-0.5 rounded">
             {event.domain}
           </span>
-          <span className={`text-[10px] font-medium px-2 py-1 rounded bg-[#10131C] border ${STATUS_STYLES[event.status] ?? STATUS_STYLES.upcoming}`}>
-            {event.status === 'live' && <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 mb-0.5 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
-            {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-          </span>
+          {event.status === 'live' && (
+            <div className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-pm-green rounded-full live-pulse" />
+              <span className="text-[10px] text-pm-green font-medium">Live</span>
+            </div>
+          )}
         </div>
 
         {/* Title */}
-        <h3 className="font-bold text-gray-100 text-base leading-snug mb-2 tracking-tight group-hover:text-white transition-colors relative z-10">
+        <h3 className="text-sm font-semibold text-pm-text leading-snug mb-2 group-hover:text-white transition-colors line-clamp-2">
           {event.title}
         </h3>
 
-        {/* Description */}
-        <p className="text-gray-500 text-xs leading-relaxed mb-4 line-clamp-2 flex-1 relative z-10">
+        <p className="text-xs text-pm-text-secondary leading-relaxed mb-3 line-clamp-2 flex-1">
           {event.description}
         </p>
 
         {/* Pool */}
-        <div className="flex items-baseline gap-2 mb-4 relative z-10">
-          <span className="font-syne text-2xl font-bold text-white tracking-tight">
-            <span className="text-stovest-blue">◈</span> {event.total_pool.toLocaleString()}
+        <div className="flex items-baseline gap-2 mb-3">
+          <span className="text-lg font-bold text-pm-text font-mono">
+            <span className="text-pm-blue">◈</span> {event.total_pool.toLocaleString()}
           </span>
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">Total Pool</span>
-        </div>
-
-        {/* Fill bar */}
-        <div className="mb-4 relative z-10">
-          <div className="flex justify-between text-[10px] text-gray-400 mb-1.5 font-mono">
-            <span>{(event as any).stakes?.[0]?.count ?? 0} / {event.max_competitors} seats</span>
-            <span className={fillPercent === 100 ? 'text-green-500 font-bold' : ''}>{fillPercent}%</span>
-          </div>
-          <div className="h-1.5 bg-[#1E2232] rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-1000 ${
-                fillPercent === 100 ? 'bg-green-500' : 'bg-stovest-blue shadow-[0_0_10px_rgba(29,78,216,0.8)]'
-              }`}
-              style={{ width: `${fillPercent}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Meta row */}
-        <div className="grid grid-cols-3 gap-2 py-3 border-t border-b border-stovest-border mb-4 relative z-10">
-          <div className="text-center">
-            <div className="font-syne text-xs font-bold text-gray-300">
-              ◈ {event.prize_pool.toLocaleString()}
-            </div>
-            <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wide">Prize pool</div>
-          </div>
-          <div className="text-center border-l border-stovest-border">
-            <div className="font-mono text-xs font-medium text-gray-300">
-              {event.rake_percent}%
-            </div>
-            <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wide">Rake</div>
-          </div>
-          <div className="text-center border-l border-stovest-border">
-            <div className="font-mono text-xs font-medium text-gray-300">
-              {event.competition_end
-                ? new Date(event.competition_end).toLocaleDateString('en-KE', { month: 'short', day: 'numeric' })
-                : 'TBD'}
-            </div>
-            <div className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wide">Ends</div>
-          </div>
+          <span className="text-[10px] text-pm-text-muted uppercase tracking-wider">Pool</span>
         </div>
 
         {/* Multiplier badges */}
-        <div className="flex gap-1.5 mb-4 relative z-10">
+        <div className="flex gap-1 mb-3">
           {topMults.map((m, i) => (
             <span
               key={m.id}
-              className={`font-mono text-[10px] px-2 py-1 rounded border ${
+              className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
                 i === 0
                   ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                  : i === 1
-                    ? 'bg-gray-800 text-gray-300 border-gray-700'
-                    : 'bg-transparent text-gray-500 border-[#1E2232]'
+                  : 'bg-pm-surface text-pm-text-secondary border-pm-border'
               }`}
             >
               {m.position_label.split(' ')[0]} — {m.multiplier}×
@@ -112,15 +225,29 @@ export default function EventCard({ event }: { event: ArcEvent }) {
         </div>
 
         {/* CTA */}
-        <div className={`w-full text-center py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-colors relative z-10 ${
+        <div className={`w-full text-center py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors ${
           event.status === 'live'
-            ? 'bg-stovest-blue text-white group-hover:bg-stovest-blue-light shadow-[0_4px_15px_-3px_rgba(29,78,216,0.4)]'
-            : 'bg-[#1E2232] text-gray-500 cursor-not-allowed group-hover:bg-gray-800'
+            ? 'bg-pm-blue text-white hover:bg-pm-blue/80'
+            : 'bg-pm-surface text-pm-text-muted'
         }`}>
-          {event.status === 'live' ? 'Stake Arc' : 'View Arena'}
+          {event.status === 'live' ? 'Stake Arc' : 'View'}
         </div>
-
       </div>
     </Link>
   )
-}
+}
+
+export default function EventCard({ event }: { event: ArcEvent }) {
+  const hasSubMarkets = (event.sub_markets ?? []).length > 0
+  const hasOutcomes = (event.outcomes ?? []).filter(o => !o.sub_market_id).length > 0
+
+  if (hasSubMarkets) {
+    return <SubMarketCard event={event} />
+  }
+  
+  if (hasOutcomes) {
+    return <DirectOutcomeCard event={event} />
+  }
+  
+  return <CompetitionCard event={event} />
+}

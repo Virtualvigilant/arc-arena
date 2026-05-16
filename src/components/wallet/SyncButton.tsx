@@ -25,7 +25,7 @@ export default function SyncButton() {
     <button
       onClick={handleSync}
       disabled={loading}
-      className="text-[10px] text-gray-500 hover:text-stovest-blue-light border border-stovest-border rounded px-2 py-1 transition-colors disabled:opacity-50 hover:border-stovest-blue/50"
+      className="text-[10px] text-pm-text-muted hover:text-pm-blue border border-pm-border rounded px-2 py-1 transition-colors disabled:opacity-50 hover:border-pm-blue/50"
     >
       {loading ? 'Syncing...' : '↻ Sync Pending'}
     </button>

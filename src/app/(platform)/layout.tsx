@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Header from '@/components/ui/Header'
-import Sidebar from '@/components/ui/Sidebar'
+
 export default async function PlatformLayout({
   children,
 }: {
@@ -19,16 +19,11 @@ export default async function PlatformLayout({
     .single()
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stovest-bg">
-      <Sidebar profile={profile} />
-      
-      <div className="flex-1 flex flex-col h-screen overflow-y-auto relative text-white">
-        <Header profile={profile} />
-        
-        <main className="max-w-6xl mx-auto w-full px-8 py-2">
-          {children}
-        </main>
-      </div>
+    <div className="min-h-screen bg-pm-bg">
+      <Header profile={profile} />
+      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-6 py-6">
+        {children}
+      </main>
     </div>
   )
 }

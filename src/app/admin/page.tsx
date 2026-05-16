@@ -55,16 +55,16 @@ export default async function AdminOverviewPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Collector overview</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
+          <h1 className="text-xl font-bold tracking-tight text-pm-text">Collector overview</h1>
+          <p className="text-pm-text-secondary text-sm mt-0.5">
             Your arena at a glance
           </p>
         </div>
         <Link
           href="/admin/events/new"
-          className="bg-white text-gray-900 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-100 transition-colors"
+          className="bg-pm-blue text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-pm-blue/90 transition-colors shadow-lg shadow-pm-blue/20"
         >
-          + Create event
+          + Create market
         </Link>
       </div>
 
@@ -75,19 +75,19 @@ export default async function AdminOverviewPage() {
             key={s.label}
             className={`rounded-xl p-4 border ${
               (s as any).warn
-                ? 'bg-amber-950 border-amber-800'
-                : 'bg-gray-900 border-gray-800'
+                ? 'bg-amber-500/5 border-amber-500/20'
+                : 'bg-pm-card border-pm-border'
             }`}
           >
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">
+            <div className="text-[10px] text-pm-text-muted uppercase tracking-wider mb-2 font-medium">
               {s.label}
             </div>
             <div className={`font-mono text-2xl font-medium ${
               s.accent
-                ? 'text-amber-400'
+                ? 'text-pm-blue'
                 : (s as any).warn
-                  ? 'text-amber-300'
-                  : 'text-white'
+                  ? 'text-amber-400'
+                  : 'text-pm-text'
             }`}>
               {s.value}
             </div>
@@ -98,14 +98,14 @@ export default async function AdminOverviewPage() {
       <div className="grid grid-cols-2 gap-4">
 
         {/* Recent events */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <div className="bg-pm-card border border-pm-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs text-gray-400 uppercase tracking-wider">
+            <h2 className="text-xs text-pm-text-secondary uppercase tracking-wider font-medium">
               Recent events
             </h2>
             <Link
               href="/admin/events"
-              className="text-xs text-gray-500 hover:text-white transition-colors"
+              className="text-xs text-pm-text-muted hover:text-pm-text transition-colors"
             >
               View all →
             </Link>
@@ -115,26 +115,26 @@ export default async function AdminOverviewPage() {
               <Link
                 key={event.id}
                 href={`/admin/events/${event.id}`}
-                className="flex items-center justify-between p-3 rounded-lg bg-gray-800 hover:bg-gray-750 transition-colors group"
+                className="flex items-center justify-between p-3 rounded-lg bg-pm-surface hover:bg-pm-card-hover transition-colors group border border-transparent hover:border-pm-border"
               >
                 <div>
-                  <div className="text-sm font-medium text-white truncate max-w-[180px]">
+                  <div className="text-sm font-medium text-pm-text truncate max-w-[180px]">
                     {event.title}
                   </div>
-                  <div className="text-[10px] text-gray-500 mt-0.5">
-                    {(event.stakes as any)?.[0]?.count ?? 0} competitors
+                  <div className="text-[10px] text-pm-text-muted mt-0.5">
+                    {(event.stakes as any)?.[0]?.count ?? 0} participants
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-mono text-xs text-amber-400">
+                  <div className="font-mono text-xs text-pm-blue">
                     {ARC} {event.total_pool.toLocaleString()}
                   </div>
                   <div className={`text-[10px] mt-0.5 ${
                     event.status === 'live'
-                      ? 'text-green-400'
+                      ? 'text-pm-green'
                       : event.status === 'completed'
-                        ? 'text-gray-500'
-                        : 'text-blue-400'
+                        ? 'text-pm-text-muted'
+                        : 'text-pm-blue'
                   }`}>
                     {event.status}
                   </div>
@@ -145,39 +145,39 @@ export default async function AdminOverviewPage() {
         </div>
 
         {/* Recent transactions */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-          <h2 className="text-xs text-gray-400 uppercase tracking-wider mb-4">
+        <div className="bg-pm-card border border-pm-border rounded-xl p-5">
+          <h2 className="text-xs text-pm-text-secondary uppercase tracking-wider mb-4 font-medium">
             Recent transactions
           </h2>
           <div className="space-y-2">
             {transactions?.map(tx => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-gray-800"
+                className="flex items-center justify-between p-3 rounded-lg bg-pm-surface"
               >
                 <div>
-                  <div className="text-sm font-medium text-white">
+                  <div className="text-sm font-medium text-pm-text">
                     {TX_LABELS[tx.type] ?? tx.type}
                   </div>
-                  <div className="font-mono text-[10px] text-gray-500 mt-0.5">
+                  <div className="font-mono text-[10px] text-pm-text-muted mt-0.5">
                     {tx.reference?.slice(0, 20)}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className={`font-mono text-xs font-medium ${
                     ['deposit', 'payout'].includes(tx.type)
-                      ? 'text-green-400'
-                      : 'text-red-400'
+                      ? 'text-pm-green'
+                      : 'text-pm-red'
                   }`}>
                     {['deposit', 'payout'].includes(tx.type) ? '+' : '-'}
                     {ARC} {tx.arc_amount.toLocaleString()}
                   </div>
                   <div className={`text-[10px] mt-0.5 ${
                     tx.status === 'completed'
-                      ? 'text-green-600'
+                      ? 'text-pm-green/60'
                       : tx.status === 'failed'
-                        ? 'text-red-600'
-                        : 'text-amber-500'
+                        ? 'text-pm-red/60'
+                        : 'text-amber-400/60'
                   }`}>
                     {tx.status}
                   </div>

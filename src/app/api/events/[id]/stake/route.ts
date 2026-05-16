@@ -24,7 +24,7 @@ export async function POST(
     }
 
     const body = await req.json()
-    const { amount, band }: { amount: number; band: StakeBand } = body
+    const { amount, band, outcome_id }: { amount: number; band: StakeBand; outcome_id?: string } = body
 
     // Validate band and amount
     if (!validateStakeBand(amount, band)) {
@@ -62,6 +62,14 @@ export async function POST(
         { error: stakeError.message },
         { status: 400 }
       )
+    }
+
+    // If an outcome was selected, save it on the stake
+    if (outcome_id && stakeId) {
+      await supabaseAdmin
+        .from('stakes')
+        .update({ outcome_id })
+        .eq('id', stakeId)
     }
 
     return NextResponse.json({ stakeId, success: true })

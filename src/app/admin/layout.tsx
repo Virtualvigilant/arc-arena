@@ -23,25 +23,25 @@ export default async function AdminLayout({
   const navLinks = [
     { href: '/admin', label: 'Overview' },
     { href: '/admin/events', label: 'Events' },
-    { href: '/admin/events/new', label: '+ New event' },
+    { href: '/admin/events/new', label: '+ New market' },
     { href: '/admin/payouts', label: 'Payouts' },
     { href: '/admin/withdrawals', label: 'Withdrawals' },
   ]
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-pm-bg text-pm-text">
 
       {/* Admin header */}
-      <header className="border-b border-gray-800 bg-gray-900">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <header className="border-b border-pm-border bg-pm-surface sticky top-0 z-50">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/admin" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 border-2 border-white rounded-md flex items-center justify-center font-mono text-xs font-medium">
-                A
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-pm-purple to-pm-blue flex items-center justify-center">
+                <span className="text-white text-xs font-bold">A</span>
               </div>
               <div>
-                <div className="font-bold text-sm leading-none">Arc</div>
-                <div className="text-gray-500 text-[9px] tracking-widest uppercase leading-none mt-0.5">
+                <div className="font-bold text-sm leading-none text-pm-text">Arc</div>
+                <div className="text-pm-text-muted text-[9px] tracking-widest uppercase leading-none mt-0.5">
                   Admin
                 </div>
               </div>
@@ -52,7 +52,7 @@ export default async function AdminLayout({
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-pm-text-secondary hover:text-pm-text hover:bg-pm-card transition-colors"
                 >
                   {link.label}
                 </Link>
@@ -61,20 +61,23 @@ export default async function AdminLayout({
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-gray-500 text-xs font-mono">
+            <span className="text-pm-text-secondary text-xs font-mono">
               @{profile.username}
             </span>
             <Link
               href="/"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-xs text-pm-text-muted hover:text-pm-text transition-colors flex items-center gap-1"
             >
-              ← Platform
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Platform
             </Link>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
         {children}
       </main>
     </div>
